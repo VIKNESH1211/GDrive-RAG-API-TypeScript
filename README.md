@@ -116,7 +116,6 @@ docker run -d \
   --name gdrive-rag-api \
   -p 3000:3000 \
   --env-file .env \
-  -v "$(pwd)/creds:/app/creds" \
   viknesh1211/gdrive1rag1api
 ```
 
@@ -150,7 +149,6 @@ docker run -d \
   --name gdrive-rag-api \
   -p 3000:3000 \
   --env-file .env \
-  -v "$(pwd)/creds:/app/creds" \
   gdrive1rag1api
 ```
 
