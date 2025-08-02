@@ -161,7 +161,7 @@ docker run -d \
 ```mermaid
 graph LR
   A[Google Drive Folder] --> B[Extract Text via Google API]
-  B --> C[Chunk Text (250, 50 overlap)]
+  B --> C[Chunk Text 250, 50 overlap]
   C --> D[Generate Embeddings (Cohere)]
   D --> E[Store in Qdrant Vector DB]
 
