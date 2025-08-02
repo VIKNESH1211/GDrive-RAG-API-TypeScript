@@ -1,5 +1,4 @@
 
-````markdown
 # 🚀 GDrive RAG API
 
 This is an **end-to-end Retrieval-Augmented Generation (RAG)** pipeline that ingests PDF Google Drive documents, chunks them smartly, generates embeddings with **Cohere**, stores them in **Qdrant**, and answers queries using **Groq’s LLaMA 3.1-8b-instant**.
