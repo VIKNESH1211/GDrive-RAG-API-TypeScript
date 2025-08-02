@@ -40,7 +40,7 @@ app.post('/ingest', async (req, res) => {
   try {
     const documents = await ingestFromDrive(folderId);
     const allChunks = documents.flatMap(doc =>
-      chunkText(doc.text, 250, 50).filter(chunk => chunk.trim().length > 0)
+      chunkText(doc.text, 400, 100).filter(chunk => chunk.trim().length > 0)
     );
     await embedAndUploadChunks(allChunks);
 
