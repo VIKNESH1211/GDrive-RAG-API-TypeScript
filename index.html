@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GDrive RAG Chat UI</title>
+  <style>
+    :root {
+      --primary: #007bff;
+      --bg-light: #f4f6f8;
+      --bg-white: #ffffff;
+      --text-dark: #333;
+      --text-muted: #666;
+      --radius: 12px;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-light);
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 3rem auto;
+      padding: 2rem;
+      background: var(--bg-white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    h1 {
+      text-align: center;
+      color: var(--text-dark);
+      margin-bottom: 2rem;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    input[type="text"] {
+      padding: 0.8rem;
+      font-size: 1rem;
+      border-radius: var(--radius);
+      border: 1px solid #ccc;
+      transition: border 0.3s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--primary);
+      outline: none;
+    }
+
+    button {
+      padding: 0.75rem;
+      font-size: 1rem;
+      background-color: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    button:hover:not(:disabled) {
+      background-color: #0056b3;
+    }
+
+    button:disabled {
+      background-color: #aaa;
+      cursor: not-allowed;
+    }
+
+    .loading-bar {
+      height: 10px;
+      background-color: var(--primary);
+      width: 0%;
+      border-radius: var(--radius);
+      transition: width 1.5s ease-in-out;
+    }
+
+    #progressLabel {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 0.2rem;
+    }
+
+    .chat {
+      background: var(--bg-light);
+      border-radius: var(--radius);
+      padding: 1rem;
+      height: 400px;
+      overflow-y: auto;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+      margin-bottom: 1rem;
+    }
+
+    .message {
+      max-width: 75%;
+      margin-bottom: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius);
+      word-wrap: break-word;
+      line-height: 1.4;
+    }
+
+    .message.user {
+      background-color: #d0e4ff;
+      margin-left: auto;
+      color: #003366;
+    }
+
+    .message.assistant {
+      background-color: #e2e2e2;
+      color: #333;
+    }
+
+    .ask-box {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    @media (max-width: 600px) {
+      .ask-box {
+        flex-direction: column;
+      }
+
+      input[type="text"], button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>GDrive RAG Chat UI</h1>
+
+    <div class="controls">
+      <input type="text" id="folderIdInput" placeholder="Enter Google Drive Folder ID" />
+      <button id="ingestBtn">Ingest</button>
+      <div id="progressLabel"></div>
+      <div class="loading-bar" id="loadingBar"></div>
+    </div>
+
+    <div class="chat" id="chatBox"></div>
+
+    <div class="ask-box">
+      <input type="text" id="questionInput" placeholder="Ask a question..." disabled />
+      <button id="askBtn" disabled>Ask</button>
+    </div>
+  </div>
+
+  <script>
+    const BASE_URL = "https://gdrive1rag1api-production.up.railway.app";
+
+    const ingestBtn = document.getElementById("ingestBtn");
+    const askBtn = document.getElementById("askBtn");
+    const questionInput = document.getElementById("questionInput");
+    const folderIdInput = document.getElementById("folderIdInput");
+    const loadingBar = document.getElementById("loadingBar");
+    const progressLabel = document.getElementById("progressLabel");
+    const chatBox = document.getElementById("chatBox");
+
+    function addMessage(text, sender = "assistant") {
+      const messageDiv = document.createElement("div");
+      messageDiv.className = `message ${sender}`;
+      messageDiv.textContent = text;
+      chatBox.appendChild(messageDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    ingestBtn.onclick = async () => {
+      const folderId = folderIdInput.value.trim();
+      if (!folderId) {
+        alert("Please enter a valid folder ID.");
+        return;
+      }
+
+      ingestBtn.disabled = true;
+      askBtn.disabled = true;
+      questionInput.disabled = true;
+
+      progressLabel.textContent = "Clearing old chunks...";
+      loadingBar.style.width = "30%";
+
+      try {
+        const clearRes = await fetch(`${BASE_URL}/clear`, { method: "POST" });
+        const clearData = await clearRes.json();
+
+        if (!clearRes.ok || clearData.success === false) {
+          throw new Error("Failed to clear existing data.");
+        }
+
+        progressLabel.textContent = "Loading data from Google Drive...";
+        loadingBar.style.width = "60%";
+
+        await new Promise(res => setTimeout(res, 3000)); // simulate drive latency
+
+        progressLabel.textContent = "Updating vector database...";
+        loadingBar.style.width = "90%";
+
+        const ingestRes = await fetch(`${BASE_URL}/ingest`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ folderId }),
+        });
+
+        const ingestData = await ingestRes.json();
+
+        if (!ingestRes.ok) {
+          throw new Error(ingestData.error || "Ingest failed");
+        }
+
+        progressLabel.textContent = "System ready. Ask your question.";
+        loadingBar.style.width = "100%";
+        askBtn.disabled = false;
+        questionInput.disabled = false;
+      } catch (err) {
+        console.error("❌ Ingest Error:", err);
+        progressLabel.textContent = "Ingest failed: " + err.message;
+        loadingBar.style.width = "0%";
+      } finally {
+        ingestBtn.disabled = false;
+      }
+    };
+
+    askBtn.onclick = async () => {
+      const question = questionInput.value.trim();
+      if (!question) return;
+
+      addMessage(question, "user");
+      questionInput.value = "";
+      addMessage("Thinking...", "assistant");
+
+      try {
+        const res = await fetch(`${BASE_URL}/ask`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question }),
+        });
+
+        const data = await res.json();
+        chatBox.lastChild.textContent = data.answer || "No answer received.";
+      } catch (err) {
+        console.error("❌ Ask Error:", err);
+        chatBox.lastChild.textContent = "Error: Could not get answer.";
+      }
+    };
+  </script>
+</body>
+</html>
