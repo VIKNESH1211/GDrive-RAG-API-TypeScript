@@ -162,7 +162,7 @@ docker run -d \
 graph LR
   A[Google Drive Folder] --> B[Extract Text via Google API]
   B --> C[Chunk Text 250, 50 overlap]
-  C --> D[Generate Embeddings (Cohere)]
+  C --> D[Generate Embeddings COHERE]
   D --> E[Store in Qdrant Vector DB]
 
   F[User Query] --> G[Embedding + Similarity Search]
