@@ -158,7 +158,6 @@ docker run -d \
 
 ## 🧠 LLM Pipeline Summary
 
-```mermaid
 graph LR
   A[Google Drive Folder] --> B[Extract Text via Google API]
   B --> C[Chunk Text (250, 50 overlap)]
