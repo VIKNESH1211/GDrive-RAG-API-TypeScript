@@ -11,7 +11,7 @@ This version is built in **TypeScript**, fully **Dockerized**, and ready to **sc
 
 Check it out at:
 
-🔗 https://gdrive1rag1api-production.up.railway.app
+🔗 https://gdrive-rag-viknesh.netlify.app/
 
 ---
 
