@@ -13,6 +13,9 @@ Check it out at:
 
 🔗 https://gdrive-rag-viknesh.netlify.app/
 
+FrontEnd : Netlify
+Backend : Railway
+
 ---
 
 
