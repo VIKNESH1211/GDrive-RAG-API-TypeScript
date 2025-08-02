@@ -5,53 +5,64 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// ✅ Cohere setup
+
 const cohere = new CohereClient({
-  token: process.env.COHERE_API_KEY!, // put in .env
+  token: process.env.COHERE_API_KEY!,
 });
 
-// ✅ Qdrant setup
 const qdrant = new QdrantClient({
-  url: process.env.QDRANT_URL!, 
+  url: process.env.QDRANT_URL!,
   apiKey: process.env.QDRANT_KEY!,
 });
 
 const COLLECTION_NAME = 'document-qna';
+const MAX_BATCH_SIZE = 96;
+
+function chunkArray<T>(array: T[], chunkSize: number): T[][] {
+  const result: T[][] = [];
+  for (let i = 0; i < array.length; i += chunkSize) {
+    result.push(array.slice(i, i + chunkSize));
+  }
+  return result;
+}
 
 export async function embedAndUploadChunks(chunks: string[]) {
-  console.log("📦 Chunk count:", chunks.length);
+  console.log("📦 Total chunks:", chunks.length);
+  const chunkedChunks = chunkArray(chunks, MAX_BATCH_SIZE);
 
-  const embed = await cohere.v2.embed({
-    texts: chunks,
-    model: 'embed-v4.0',
-    inputType: 'search_document',
-    // embeddingTypes: ['float'],  // ❌ Optional — try removing if error continues
-  });
+  for (let i = 0; i < chunkedChunks.length; i++) {
+    const batch = chunkedChunks[i];
+    console.log(`🔹 Processing batch ${i + 1}/${chunkedChunks.length} (size: ${batch.length})`);
 
-  //console.log("🧠 Embed response:", JSON.stringify(embed, null, 2));
+    const embed = await cohere.v2.embed({
+      texts: batch,
+      model: 'embed-v4.0',
+      inputType: 'search_document',
+    });
 
-  const embeddings = embed.embeddings['float']; // ✅ Fix here
+    const embeddings = embed.embeddings['float'];
 
-  if (!embeddings || embeddings.length !== chunks.length) {
-    throw new Error("❌ Embedding failed or mismatched.");
+    if (!embeddings || embeddings.length !== batch.length) {
+      throw new Error("❌ Embedding failed or mismatched for batch.");
+    }
+
+    const points = batch.map((chunk, index) => ({
+      id: uuidv4(),
+      vector: embeddings[index],
+      payload: { text: chunk },
+    }));
+
+    const uploadResponse = await qdrant.upsert(COLLECTION_NAME, {
+      wait: true,
+      batch: {
+        vectors: points.map(p => p.vector),
+        ids: points.map(p => p.id),
+        payloads: points.map(p => p.payload),
+      },
+    });
+
+    console.log(`✅ Batch ${i + 1} uploaded successfully.`);
   }
 
-  const points = chunks.map((chunk, index) => ({
-    id: uuidv4(),
-    vector: embeddings[index],
-    payload: {
-      text: chunk,
-    },
-  }));
-
-  const uploadResponse = await qdrant.upsert(COLLECTION_NAME, {
-    wait: true,
-    batch: {
-      vectors: points.map(p => p.vector),
-      ids: points.map(p => p.id),
-      payloads: points.map(p => p.payload),
-    },
-  });
-
-  console.log("✅ Upload complete:", uploadResponse);
+  console.log("🎉 All chunks embedded and uploaded to Qdrant.");
 }
