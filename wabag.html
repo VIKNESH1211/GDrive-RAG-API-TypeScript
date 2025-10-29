@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WABAG Water Solutions | AI Assistant</title>
+</head>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+    :root {
+      --primary: #003366;
+      --secondary: #1a75ff;
+      --text-light: #f0f4ff;
+      --white: #ffffff;
+      --chat-bg: #f5f7fa;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      color: var(--text-light);
+      background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.6)),
+        url('https://images.unsplash.com/photo-1505144808419-1957a94ca61e?auto=format&fit=crop&w=1920&q=80');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* HEADER */
+    header {
+      width: 100%;
+      padding: 1rem 3rem;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(8px);
+      position: fixed;
+      top: 0;
+      z-index: 10;
+    }
+
+    .logo {
+      display: flex;
+      flex-direction: column;
+      font-weight: bold;
+      color: var(--white);
+    }
+
+    .logo span {
+      font-size: 0.85rem;
+      font-weight: 400;
+      color: #aad4ff;
+    }
+
+    nav ul {
+      display: flex;
+      list-style: none;
+      gap: 1.5rem;
+    }
+
+    nav a {
+      text-decoration: none;
+      color: var(--white);
+      font-weight: 500;
+      transition: color 0.3s ease;
+    }
+
+    nav a:hover {
+      color: var(--secondary);
+    }
+
+    /* HERO */
+    .hero {
+      margin-top: 6rem;
+      text-align: center;
+      padding: 5rem 2rem;
+      color: var(--white);
+    }
+
+    .hero h1 {
+      font-size: 2.8rem;
+      margin-bottom: 1rem;
+    }
+
+    .hero p {
+      max-width: 650px;
+      margin: 0 auto 2rem auto;
+      font-size: 1.2rem;
+      color: #e8f1ff;
+    }
+
+    .hero button {
+      background: transparent;
+      border: 2px solid var(--white);
+      color: var(--white);
+      border-radius: 5px;
+      padding: 10px 20px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .hero button:hover {
+      background: rgba(255,255,255,0.2);
+    }
+
+    /* CHATBOT BUTTON */
+    .chatbot-button {
+      position: fixed;
+      bottom: 25px;
+      right: 25px; /* changed to bottom-right */
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 65px;
+      height: 65px;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+      transition: all 0.3s ease;
+      z-index: 15;
+    }
+
+    .chatbot-button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 8px 22px rgba(0,0,0,0.4);
+    }
+
+    /* CHAT WINDOW */
+    .chatbot-window {
+      position: fixed;
+      bottom: 100px;
+      right: 25px; /* bottom-right */
+      width: 400px; /* slightly wider */
+      height: 520px; /* slightly taller */
+      background: var(--chat-bg);
+      border-radius: 16px; /* more modern rounded corners */
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      animation: popup 0.4s ease;
+      backdrop-filter: blur(12px);
+      resize: both; /* resizable window */
+      overflow: auto;
+      z-index: 20;
+    }
+
+    @keyframes popup {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .chat-header {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: var(--white);
+      padding: 1rem;
+      text-align: center;
+      font-weight: bold;
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
+    }
+
+    .chat-body {
+      flex: 1;
+      padding: 1rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      scrollbar-width: thin;
+      scrollbar-color: var(--secondary) #ccc;
+    }
+
+    .chat-body::-webkit-scrollbar {
+      width: 6px;
+    }
+    .chat-body::-webkit-scrollbar-thumb {
+      background-color: var(--secondary);
+      border-radius: 3px;
+    }
+
+    .message {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      max-width: 85%;
+      line-height: 1.4;
+      animation: fadeMsg 0.3s ease;
+    }
+
+    @keyframes fadeMsg {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .bot-avatar, .user-avatar {
+      width: 36px; /* slightly bigger */
+      height: 36px;
+      border-radius: 50%;
+      background: var(--secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+    }
+
+    .message.assistant .bubble {
+      background: #e8ecf7;
+      color: #1c1c1c;
+      padding: 0.8rem 1.2rem; /* slightly more padding */
+      border-radius: 12px 12px 12px 0;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .message.user .bubble {
+      background: var(--secondary);
+      color: #fff;
+      padding: 0.8rem 1.2rem; /* slightly more padding */
+      border-radius: 12px 12px 0 12px;
+    }
+
+    /* Typing Animation */
+    .wave {
+      display: inline-block;
+      position: relative;
+      width: 24px;
+      height: 10px;
+    }
+
+    .wave span {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background: var(--secondary);
+      border-radius: 50%;
+      position: absolute;
+      animation: waveAnim 1s infinite ease-in-out;
+    }
+
+    .wave span:nth-child(1) { left: 0; animation-delay: 0s; }
+    .wave span:nth-child(2) { left: 8px; animation-delay: 0.2s; }
+    .wave span:nth-child(3) { left: 16px; animation-delay: 0.4s; }
+
+    @keyframes waveAnim {
+      0%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-6px); }
+    }
+
+    .chat-input {
+      display: flex;
+      border-top: 1px solid #ddd;
+      background: #fff;
+    }
+
+    .chat-input input {
+      flex: 1;
+      border: none;
+      padding: 0.9rem;
+      font-size: 1rem;
+      outline: none;
+      color: #333;
+    }
+
+    .chat-input button {
+      background: var(--secondary);
+      color: #fff;
+      border: none;
+      padding: 0 1.2rem;
+      cursor: pointer;
+      font-size: 1.2rem;
+      transition: background 0.3s;
+    }
+
+    .chat-input button:hover {
+      background: var(--primary);
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      header { padding: 1rem; flex-direction: column; }
+      nav ul { flex-wrap: wrap; justify-content: center; gap: 1rem; }
+      .chatbot-window { width: 90%; left: 5%; bottom: 80px; height: 480px; }
+    }
+</style>
+
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      WABAG
+      <span>sustainable water solutions. for a better life.</span>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="#">Home</a></li>
+        <li><a href="#">Leading the Way</a></li>
+        <li><a href="#">Sustainability</a></li>
+        <li><a href="#">Our Offerings</a></li>
+        <li><a href="#">Global References</a></li>
+        <li><a href="#">Innovation</a></li>
+        <li><a href="#">Careers</a></li>
+        <li><a href="#">Investors</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- HERO SECTION -->
+  <div class="hero">
+    <h1>WABAG – Where Water Meets Innovation</h1>
+    <p>Pioneering every drop with purpose, passion, and precision. Discover our sustainable water solutions that power the planet responsibly.</p>
+    <button>Dive-in for Details</button>
+  </div>
+
+  <!-- CHATBOT -->
+  <button class="chatbot-button" id="chatToggle">💬</button>
+
+    <div class="chatbot-window" id="chatWindow">
+    <div class="chat-header">
+        <span>WABAG AI Assistant</span>
+    </div>
+    <div class="chat-body" id="chatBody"></div>
+    <div class="chat-input">
+        <input type="text" id="userInput" placeholder="Ask your question..." />
+        <button id="sendBtn">➤</button>
+    </div>
+    </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <script>
+    const BASE_URL = "http://localhost:3000";
+    const chatToggle = document.getElementById("chatToggle");
+    const chatWindow = document.getElementById("chatWindow");
+    const chatBody = document.getElementById("chatBody");
+    const sendBtn = document.getElementById("sendBtn");
+    const userInput = document.getElementById("userInput");
+
+    chatToggle.onclick = () => {
+      chatWindow.style.display = chatWindow.style.display === "flex" ? "none" : "flex";
+    };
+
+    function addMessage(text, sender) {
+    const msg = document.createElement("div");
+    msg.className = `message ${sender}`;
+
+    const avatar = document.createElement("div");
+    avatar.className = sender === "assistant" ? "bot-avatar" : "user-avatar";
+    avatar.textContent = sender === "assistant" ? "🤖" : "🧑";
+
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+
+    if (sender === "assistant") {
+        // Convert Markdown to HTML
+        bubble.innerHTML = marked.parse(text);
+    } else {
+        bubble.textContent = text;
+    }
+
+    msg.appendChild(avatar);
+    msg.appendChild(bubble);
+    chatBody.appendChild(msg);
+    chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+
+    function showTyping() {
+      const msg = document.createElement("div");
+      msg.className = "message assistant";
+      msg.innerHTML = `
+        <div class="bot-avatar">🤖</div>
+        <div class="bubble">
+          <div class="wave"><span></span><span></span><span></span></div>
+        </div>`;
+      chatBody.appendChild(msg);
+      chatBody.scrollTop = chatBody.scrollHeight;
+      return msg;
+    }
+
+    sendBtn.onclick = async () => {
+      const question = userInput.value.trim();
+      if (!question) return;
+      addMessage(question, "user");
+      userInput.value = "";
+      const typingMsg = showTyping();
+
+      try {
+        const res = await fetch(`${BASE_URL}/ask`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question }),
+        });
+
+        const data = await res.json();
+        typingMsg.remove();
+        addMessage(data.answer || "No response available.", "assistant");
+      } catch (err) {
+        typingMsg.remove();
+        addMessage("⚠️ Unable to connect to server. Please try again later.", "assistant");
+      }
+    };
+  </script>
+</body>
+</html>
