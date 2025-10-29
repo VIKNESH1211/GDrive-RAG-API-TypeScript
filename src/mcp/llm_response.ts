@@ -36,7 +36,7 @@ export async function getLLMResponse(context: string, question: string): Promise
 
   - Respond with proper line breaks and markdown(bold , itallics etc) to enhance readability.  
 
-  Your goal: make users feel like they’re chatting with a knowledgeable and approachable WABAG representative.`
+  Your goal: make users  like they’re chatting with a knowledgeable and approachable WABAG representative.`
 },
 {
   role: "user",
