@@ -4,3 +4,11 @@ node_modules
 *.log
 credentials
 documents
+__pycache__
+.pytest_cache
+.git
+venv
+env
+*.pyc
+.DS_Store
+typescript-backup
