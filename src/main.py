@@ -1,119 +1,211 @@
 import os
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+import uuid
+import logging
+from contextlib import asynccontextmanager
+from typing import Optional
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s — %(message)s",
+)
+
 from dotenv import load_dotenv
-from mcp.drive_ingest import ingest_from_drive
-from mcp.chunk import chunk_text
-from mcp.embed_and_upload import embed_and_upload_chunks
-from mcp.embed_qes import get_question_embedding
-from mcp.search_quad import search_context
-from mcp.llm_response import get_llm_response
-from mcp.clear_collection import clear_collection
 
-
-# Load environment variables
 load_dotenv(override=True)
 
-app = FastAPI()
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
-# Add CORS middleware
+from src.auth import create_token, verify_admin, ADMIN_USERNAME, ADMIN_PASSWORD
+from src.vector_store import VectorStore
+from src.ingestion import ingest_from_drive, ingest_pdf_bytes, ingest_docx_bytes, ingest_url
+from src.llm import generate_answer
+
+logger = logging.getLogger(__name__)
+
+vs = VectorStore()
+limiter = Limiter(key_func=get_remote_address)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    vs.init()
+    logger.info("RAG API v2 ready")
+    yield
+
+
+app = FastAPI(title="RAG API", version="2.0.0", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "*").split(","),
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
-port = int(os.getenv("PORT", 3000))
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
 
-# Request/Response models
-class IngestRequest(BaseModel):
-    folderId: str
+@app.post("/auth/login")
+def login(req: LoginRequest):
+    if req.username != ADMIN_USERNAME or req.password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    return {"token": create_token(req.username), "expires_in": 28800}
 
 
-class AskRequest(BaseModel):
-    question: str
+# ── Admin: Ingest ─────────────────────────────────────────────────────────────
+
+class DriveIngestRequest(BaseModel):
+    folder_id: str
+    clear_first: bool = True
 
 
-class IngestResponse(BaseModel):
-    message: str
-    documents: int
-    chunks: int
+@app.post("/admin/ingest/drive")
+@limiter.limit("5/minute")
+def ingest_drive(request: Request, body: DriveIngestRequest, admin=Depends(verify_admin)):
+    if body.clear_first:
+        vs.clear()
+    docs = ingest_from_drive(body.folder_id)
+    if not docs:
+        return {"documents": 0, "chunks": 0, "message": "No supported files found in folder"}
+    total = sum(vs.add_document(d["text"], "drive", d["name"], d["id"]) for d in docs)
+    return {"documents": len(docs), "chunks": total}
 
 
-class AskResponse(BaseModel):
-    question: str
-    context: str
-    answer: str
+@app.post("/admin/ingest/file")
+@limiter.limit("10/minute")
+async def ingest_file(
+    request: Request,
+    file: UploadFile = File(...),
+    clear_first: bool = Form(False),
+    admin=Depends(verify_admin),
+):
+    content = await file.read()
+    filename = file.filename or "upload"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
-
-@app.post("/ingest", response_model=IngestResponse)
-def ingest(request: IngestRequest):
-    """Ingest PDFs from Google Drive, chunk them, and upload to Qdrant."""
-    if not request.folderId:
-        raise HTTPException(status_code=400, detail="Missing folderId in request body")
-
-    try:
-        documents = ingest_from_drive(request.folderId)
-        all_chunks = [
-            chunk for doc in documents
-            for chunk in chunk_text(doc["text"], 100, 50)
-            if chunk.strip()
-        ]
-        embed_and_upload_chunks(all_chunks)
-
-        return IngestResponse(
-            message="Ingestion, chunking, embedding, and upload successful",
-            documents=len(documents),
-            chunks=len(all_chunks)
-        )
-    except Exception as error:
-        print(f"❌ Error in /ingest: {error}")
-        raise HTTPException(status_code=500, detail="Failed to ingest and update vector DB")
-
-
-@app.post("/ask", response_model=AskResponse)
-def ask(request: AskRequest):
-    """Answer a question using RAG."""
-    if not request.question:
-        raise HTTPException(status_code=400, detail="Missing question in request body")
-    print(f"❓ Received question: {request.question}")
-
-    try:
-        print("🔍 Generating embedding for the question...")
-        embedding = get_question_embedding(request.question)
-        print(f"✅ Embedding generated successfully : length={len(embedding)}")
-        print("🔎 Searching for relevant context in Qdrant...")
-        context = search_context(embedding)
-        print(f"✅ Context retrieved successfully : \n context={context}")
-        print("💡 Generating answer from LLM...")
-        answer = get_llm_response(context, request.question)
-        print(f"✅ Answer generated successfully : \n answer={answer}")
-
-        return AskResponse(
-            question=request.question,
-            context=context,
-            answer=answer
-        )
-    except Exception as error:
-        print(f"❌ Error in /ask: {error}")
-        raise HTTPException(status_code=500, detail="Failed to generate answer")
-
-
-@app.post("/clear")
-def clear_db():
-    """Clear all documents from the vector database."""
-    result = clear_collection()
-
-    if result["success"]:
-        return result
+    if ext == "pdf":
+        text = ingest_pdf_bytes(content)
+    elif ext == "docx":
+        text = ingest_docx_bytes(content)
+    elif ext in ("txt", "md"):
+        text = content.decode("utf-8", errors="ignore")
     else:
-        raise HTTPException(status_code=500, detail=result.get("error", "Failed to clear collection"))
+        raise HTTPException(400, f"Unsupported file type .{ext} — supported: pdf, docx, txt, md")
+
+    if not text.strip():
+        raise HTTPException(400, "Could not extract text from file")
+
+    if clear_first:
+        vs.clear()
+
+    chunks = vs.add_document(text, "upload", filename, str(uuid.uuid4()))
+    return {"filename": filename, "chunks": chunks}
 
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+class URLIngestRequest(BaseModel):
+    url: str
+    clear_first: bool = False
+
+
+@app.post("/admin/ingest/url")
+@limiter.limit("5/minute")
+def ingest_from_url(request: Request, body: URLIngestRequest, admin=Depends(verify_admin)):
+    try:
+        text = ingest_url(body.url)
+    except Exception as exc:
+        raise HTTPException(400, f"Failed to fetch URL: {exc}")
+    if not text.strip():
+        raise HTTPException(400, "No text content found at URL")
+    if body.clear_first:
+        vs.clear()
+    chunks = vs.add_document(text, "url", body.url, str(uuid.uuid4()))
+    return {"url": body.url, "chunks": chunks}
+
+
+class TextIngestRequest(BaseModel):
+    text: str
+    title: str = "Manual Entry"
+    clear_first: bool = False
+
+
+@app.post("/admin/ingest/text")
+def ingest_text(body: TextIngestRequest, admin=Depends(verify_admin)):
+    if not body.text.strip():
+        raise HTTPException(400, "Text cannot be empty")
+    if body.clear_first:
+        vs.clear()
+    chunks = vs.add_document(body.text, "text", body.title, str(uuid.uuid4()))
+    return {"title": body.title, "chunks": chunks}
+
+
+# ── Admin: Documents ──────────────────────────────────────────────────────────
+
+@app.get("/admin/documents")
+def list_documents(admin=Depends(verify_admin)):
+    return vs.list_documents()
+
+
+@app.delete("/admin/documents/{doc_id}")
+def delete_document(doc_id: str, admin=Depends(verify_admin)):
+    vs.delete_document(doc_id)
+    return {"deleted": doc_id}
+
+
+@app.delete("/admin/collection")
+def clear_collection(admin=Depends(verify_admin)):
+    vs.clear()
+    return {"message": "Knowledge base cleared"}
+
+
+@app.get("/admin/stats")
+def get_stats(admin=Depends(verify_admin)):
+    return vs.get_stats()
+
+
+# ── Chat (WordPress plugin + admin test) ──────────────────────────────────────
+
+class ChatRequest(BaseModel):
+    question: str
+    session_id: Optional[str] = None
+
+
+@app.post("/ask")
+@limiter.limit("60/minute")
+def ask(request: Request, body: ChatRequest):
+    q = body.question.strip()
+    if not q:
+        raise HTTPException(400, "Question cannot be empty")
+    context = vs.search(q)
+    if not context:
+        return {
+            "question": q,
+            "answer": "I don't have information about that in the knowledge base.",
+            "context": "",
+        }
+    answer = generate_answer(q, context)
+    return {"question": q, "answer": answer, "context": context}
+
+
+# ── Health & Frontend ─────────────────────────────────────────────────────────
+
+@app.get("/health")
+def health():
+    stats = vs.get_stats()
+    return {"status": "ok", "version": "2.0.0", "chunks": stats.get("total_chunks", 0)}
+
+
+@app.get("/")
+def frontend():
+    return FileResponse("index.html")

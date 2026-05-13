@@ -1,261 +1,495 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GDrive RAG Chat UI</title>
-  <style>
-    :root {
-      --primary: #007bff;
-      --bg-light: #f4f6f8;
-      --bg-white: #ffffff;
-      --text-dark: #333;
-      --text-muted: #666;
-      --radius: 12px;
-      --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG Admin</title>
+<style>
+:root {
+  --primary: #4f46e5;
+  --primary-dark: #3730a3;
+  --success: #10b981;
+  --error: #ef4444;
+  --bg: #f8fafc;
+  --sidebar-bg: #1e1b4b;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --muted: #64748b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
 
-    * {
-      box-sizing: border-box;
-    }
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1e1b4b,#312e81)}
+.login-card{background:var(--card);border-radius:1rem;padding:2.5rem;width:100%;max-width:380px;box-shadow:0 25px 50px rgba(0,0,0,.3)}
+.login-card h1{font-size:1.375rem;font-weight:700;text-align:center;margin-bottom:.25rem}
+.login-card p{text-align:center;color:var(--muted);margin-bottom:1.5rem}
 
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: var(--bg-light);
-    }
+.app{display:flex;min-height:100vh}
+.sidebar{width:220px;flex-shrink:0;background:var(--sidebar-bg);color:#fff;display:flex;flex-direction:column;padding:1.25rem 0}
+.sidebar-brand{padding:0 1.25rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.1)}
+.sidebar-brand h2{font-size:1rem;font-weight:700}
+.sidebar-brand span{font-size:.7rem;color:rgba(255,255,255,.45)}
+.nav{flex:1;padding:.75rem 0}
+.nav-item{display:flex;align-items:center;gap:.625rem;padding:.625rem 1.25rem;cursor:pointer;color:rgba(255,255,255,.65);border-left:3px solid transparent;transition:.15s}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav-item.active{background:rgba(255,255,255,.1);color:#fff;border-left-color:#818cf8}
+.nav-icon{font-size:1rem}
+.sidebar-footer{padding:.875rem 1.25rem;border-top:1px solid rgba(255,255,255,.1)}
+.stats-chip{font-size:.7rem;color:rgba(255,255,255,.4);text-align:center;margin-bottom:.625rem}
+.logout-btn{width:100%;background:none;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.65);padding:.4rem;border-radius:.4rem;cursor:pointer;font-size:.75rem;transition:.15s}
+.logout-btn:hover{background:rgba(255,255,255,.1);color:#fff}
 
-    .container {
-      max-width: 800px;
-      margin: 3rem auto;
-      padding: 2rem;
-      background: var(--bg-white);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-    }
+.main{flex:1;padding:1.75rem;overflow-y:auto}
+.page{display:none}
+.page.active{display:block}
+.page-title{font-size:1.375rem;font-weight:700;margin-bottom:.25rem}
+.page-sub{font-size:.8125rem;color:var(--muted);margin-bottom:1.25rem}
 
-    h1 {
-      text-align: center;
-      color: var(--text-dark);
-      margin-bottom: 2rem;
-    }
+.card{background:var(--card);border:1px solid var(--border);border-radius:.75rem;padding:1.25rem;margin-bottom:1rem}
+.card h3{font-size:.9375rem;font-weight:600;margin-bottom:.875rem}
 
-    .controls {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
+.fg{margin-bottom:.875rem}
+label{display:block;font-size:.8125rem;font-weight:500;margin-bottom:.3rem}
+input[type=text],input[type=password],input[type=url],textarea{width:100%;padding:.5rem .75rem;border:1px solid var(--border);border-radius:.5rem;font-size:.8125rem;outline:none;background:#fff;color:var(--text);transition:.15s}
+input:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.1)}
+textarea{resize:vertical;min-height:90px}
+.ck-label{display:flex;align-items:center;gap:.4rem;cursor:pointer;color:var(--muted);font-size:.8125rem;margin-top:.5rem}
+.ck-label input{width:auto}
 
-    input[type="text"] {
-      padding: 0.8rem;
-      font-size: 1rem;
-      border-radius: var(--radius);
-      border: 1px solid #ccc;
-      transition: border 0.3s;
-    }
+.btn{padding:.5rem 1rem;border-radius:.5rem;border:none;font-size:.8125rem;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem;transition:.15s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--primary-dark)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-danger{background:var(--error);color:#fff}
+.btn-danger:hover{background:#dc2626}
+.btn-sm{padding:.3rem .6rem;font-size:.75rem}
 
-    input[type="text"]:focus {
-      border-color: var(--primary);
-      outline: none;
-    }
+.drop-zone{border:2px dashed var(--border);border-radius:.75rem;padding:1.75rem;text-align:center;cursor:pointer;transition:.15s}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--primary);background:rgba(79,70,229,.04)}
+.drop-zone .dz-icon{font-size:1.75rem;display:block;margin-bottom:.375rem}
+.drop-zone p{color:var(--muted);font-size:.8125rem;margin-top:.25rem}
+.file-preview{display:none;margin-top:.625rem;padding:.5rem .75rem;background:var(--bg);border-radius:.5rem;font-size:.8125rem}
 
-    button {
-      padding: 0.75rem;
-      font-size: 1rem;
-      background-color: var(--primary);
-      color: #fff;
-      border: none;
-      border-radius: var(--radius);
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
+.alert{padding:.625rem .875rem;border-radius:.5rem;font-size:.8125rem;margin-top:.625rem;display:none}
+.alert.show{display:block}
+.alert-success{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}
+.alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
 
-    button:hover:not(:disabled) {
-      background-color: #0056b3;
-    }
+.prog-wrap{display:none;margin-top:.625rem}
+.prog-wrap.show{display:block}
+.prog-bar{height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;background:var(--primary);border-radius:3px;transition:width .35s}
+.prog-text{font-size:.7rem;color:var(--muted);margin-top:.3rem}
 
-    button:disabled {
-      background-color: #aaa;
-      cursor: not-allowed;
-    }
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:.625rem .875rem;text-align:left;border-bottom:1px solid var(--border);font-size:.8125rem}
+th{font-weight:600;color:var(--muted);background:var(--bg);font-size:.7rem;text-transform:uppercase;letter-spacing:.04em}
+tr:hover td{background:#fafbfc}
+.badge{display:inline-block;padding:.175rem .45rem;border-radius:9999px;font-size:.7rem;font-weight:500}
+.badge-drive{background:#dbeafe;color:#1e40af}
+.badge-upload{background:#d1fae5;color:#065f46}
+.badge-url{background:#fef3c7;color:#92400e}
+.badge-text{background:#f3e8ff;color:#6b21a8}
+.empty{text-align:center;padding:2.5rem;color:var(--muted)}
+.empty .ei{font-size:2rem;display:block;margin-bottom:.375rem}
+.row-actions{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem}
 
-    .loading-bar {
-      height: 10px;
-      background-color: var(--primary);
-      width: 0%;
-      border-radius: var(--radius);
-      transition: width 1.5s ease-in-out;
-    }
+.chat-box{height:380px;overflow-y:auto;border:1px solid var(--border);border-radius:.75rem;padding:.875rem;display:flex;flex-direction:column;gap:.625rem;margin-bottom:.875rem}
+.msg{max-width:78%;padding:.625rem .875rem;border-radius:.875rem;font-size:.8125rem;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.msg.user{background:var(--primary);color:#fff;align-self:flex-end;border-bottom-right-radius:.25rem}
+.msg.bot{background:var(--bg);border:1px solid var(--border);align-self:flex-start;border-bottom-left-radius:.25rem}
+.msg .src{font-size:.7rem;color:var(--muted);margin-top:.4rem;padding-top:.4rem;border-top:1px solid var(--border)}
+.chat-row{display:flex;gap:.625rem}
+.chat-row input{flex:1}
 
-    #progressLabel {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      margin-bottom: 0.2rem;
-    }
+.spin{display:inline-block;width:.875rem;height:.875rem;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
 
-    .chat {
-      background: var(--bg-light);
-      border-radius: var(--radius);
-      padding: 1rem;
-      height: 400px;
-      overflow-y: auto;
-      box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
-      margin-bottom: 1rem;
-    }
-
-    .message {
-      max-width: 75%;
-      margin-bottom: 1rem;
-      padding: 0.75rem 1rem;
-      border-radius: var(--radius);
-      word-wrap: break-word;
-      line-height: 1.4;
-    }
-
-    .message.user {
-      background-color: #d0e4ff;
-      margin-left: auto;
-      color: #003366;
-    }
-
-    .message.assistant {
-      background-color: #e2e2e2;
-      color: #333;
-    }
-
-    .ask-box {
-      display: flex;
-      gap: 0.75rem;
-      align-items: center;
-    }
-
-    @media (max-width: 600px) {
-      .ask-box {
-        flex-direction: column;
-      }
-
-      input[type="text"], button {
-        width: 100%;
-      }
-    }
-  </style>
+@media(max-width:768px){.app{flex-direction:column}.sidebar{width:100%}.main{padding:1rem}}
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>GDrive PDF RAG</h1>
 
-    <div class="controls">
-      <input type="text" id="folderIdInput" placeholder="Enter Google Drive Folder ID" />
-      <button id="ingestBtn">Ingest</button>
-      <div id="progressLabel"></div>
-      <div class="loading-bar" id="loadingBar"></div>
+<div id="loginPage" class="login-wrap">
+  <div class="login-card">
+    <h1>RAG Admin</h1>
+    <p>Sign in to manage your knowledge base</p>
+    <div class="fg">
+      <label>Username</label>
+      <input id="lu" type="text" placeholder="admin" autocomplete="username">
     </div>
-
-    <div class="chat" id="chatBox"></div>
-
-    <div class="ask-box">
-      <input type="text" id="questionInput" placeholder="Ask a question..." disabled />
-      <button id="askBtn" disabled>Ask</button>
+    <div class="fg">
+      <label>Password</label>
+      <input id="lp" type="password" placeholder="••••••••" autocomplete="current-password">
     </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doLogin()">Sign In</button>
+    <div id="loginErr" class="alert alert-error" style="margin-top:.75rem"></div>
   </div>
+</div>
 
-  <script>
-    const BASE_URL = "https://gdrive1rag1api-production.up.railway.app";
+<div id="appShell" class="app" style="display:none">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h2>RAG Admin</h2>
+      <span>Knowledge Base Manager</span>
+    </div>
+    <nav class="nav">
+      <div class="nav-item active" data-page="ingest" onclick="nav('ingest')">
+        <span class="nav-icon">📥</span> Ingest
+      </div>
+      <div class="nav-item" data-page="documents" onclick="nav('documents')">
+        <span class="nav-icon">📄</span> Documents
+      </div>
+      <div class="nav-item" data-page="chat" onclick="nav('chat')">
+        <span class="nav-icon">💬</span> Test Chat
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div id="statsChip" class="stats-chip">—</div>
+      <button class="logout-btn" onclick="logout()">Sign Out</button>
+    </div>
+  </aside>
 
-    const ingestBtn = document.getElementById("ingestBtn");
-    const askBtn = document.getElementById("askBtn");
-    const questionInput = document.getElementById("questionInput");
-    const folderIdInput = document.getElementById("folderIdInput");
-    const loadingBar = document.getElementById("loadingBar");
-    const progressLabel = document.getElementById("progressLabel");
-    const chatBox = document.getElementById("chatBox");
+  <main class="main">
 
-    function addMessage(text, sender = "assistant") {
-      const messageDiv = document.createElement("div");
-      messageDiv.className = `message ${sender}`;
-      messageDiv.textContent = text;
-      chatBox.appendChild(messageDiv);
-      chatBox.scrollTop = chatBox.scrollHeight;
+    <div id="page-ingest" class="page active">
+      <div class="page-title">Ingest Content</div>
+      <div class="page-sub">Add documents from multiple sources to build your knowledge base.</div>
+
+      <div class="card">
+        <h3>📁 Google Drive Folder</h3>
+        <div class="fg">
+          <label>Folder ID</label>
+          <input id="driveId" type="text" placeholder="Paste Google Drive folder ID here">
+        </div>
+        <label class="ck-label"><input type="checkbox" id="driveClear" checked> Clear knowledge base first</label>
+        <div style="margin-top:.875rem">
+          <button class="btn btn-primary" id="driveBtn" onclick="ingestDrive()">Ingest from Drive</button>
+        </div>
+        <div id="driveProg" class="prog-wrap">
+          <div class="prog-bar"><div class="prog-fill" id="driveFill" style="width:0%"></div></div>
+          <div class="prog-text" id="driveProgTxt">Processing...</div>
+        </div>
+        <div id="driveAlert" class="alert"></div>
+      </div>
+
+      <div class="card">
+        <h3>⬆️ Upload File</h3>
+        <div id="dropZone" class="drop-zone" onclick="document.getElementById('fi').click()">
+          <span class="dz-icon">📂</span>
+          <strong>Click or drag &amp; drop</strong>
+          <p>Supports PDF, DOCX, TXT, Markdown</p>
+        </div>
+        <input id="fi" type="file" accept=".pdf,.docx,.txt,.md" style="display:none" onchange="onFilePick(event)">
+        <div id="filePreview" class="file-preview">📎 <span id="fName"></span> <span id="fSize" style="color:var(--muted)"></span></div>
+        <label class="ck-label" style="margin-top:.625rem"><input type="checkbox" id="fileClear"> Clear knowledge base first</label>
+        <div style="margin-top:.875rem">
+          <button class="btn btn-primary" id="fileBtn" onclick="ingestFile()" disabled>Upload &amp; Ingest</button>
+        </div>
+        <div id="fileAlert" class="alert"></div>
+      </div>
+
+      <div class="card">
+        <h3>🌐 Web Page URL</h3>
+        <div class="fg">
+          <label>URL</label>
+          <input id="urlVal" type="url" placeholder="https://example.com/page">
+        </div>
+        <label class="ck-label"><input type="checkbox" id="urlClear"> Clear knowledge base first</label>
+        <div style="margin-top:.875rem">
+          <button class="btn btn-primary" id="urlBtn" onclick="ingestUrl()">Scrape &amp; Ingest</button>
+        </div>
+        <div id="urlAlert" class="alert"></div>
+      </div>
+
+      <div class="card">
+        <h3>✏️ Plain Text</h3>
+        <div class="fg">
+          <label>Title</label>
+          <input id="txtTitle" type="text" placeholder="e.g. Product FAQ">
+        </div>
+        <div class="fg">
+          <label>Content</label>
+          <textarea id="txtBody" placeholder="Paste text content here..."></textarea>
+        </div>
+        <label class="ck-label"><input type="checkbox" id="txtClear"> Clear knowledge base first</label>
+        <div style="margin-top:.875rem">
+          <button class="btn btn-primary" id="txtBtn" onclick="ingestText()">Add to Knowledge Base</button>
+        </div>
+        <div id="txtAlert" class="alert"></div>
+      </div>
+    </div>
+
+    <div id="page-documents" class="page">
+      <div class="row-actions">
+        <div>
+          <div class="page-title" style="margin-bottom:0">Documents</div>
+          <div class="page-sub" style="margin-bottom:0">Ingested content in the knowledge base.</div>
+        </div>
+        <button class="btn btn-danger" onclick="clearAll()">🗑️ Clear All</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Filename / Source</th>
+                <th>Type</th>
+                <th>Chunks</th>
+                <th>Ingested</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="docsBody">
+              <tr><td colspan="5"><div class="empty"><span class="ei">📭</span>Loading...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-chat" class="page">
+      <div class="page-title">Test Chat</div>
+      <div class="page-sub">Query the knowledge base to verify ingested content.</div>
+      <div class="card">
+        <div id="chatBox" class="chat-box">
+          <div class="msg bot">Ask me anything about the knowledge base documents.</div>
+        </div>
+        <div class="chat-row">
+          <input id="chatIn" type="text" placeholder="Ask a question..." onkeydown="if(event.key==='Enter')sendChat()">
+          <button class="btn btn-primary" id="chatBtn" onclick="sendChat()">Send</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const API = "";
+let TOKEN = "";
+let pickedFile = null;
+
+function init() {
+  TOKEN = localStorage.getItem("rag_token") || "";
+  if (TOKEN) showApp();
+  $("lp").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+}
+
+async function doLogin() {
+  const u = v("lu"), p = v("lp"), err = $("loginErr");
+  if (!u || !p) { alert2(err, "Enter username and password", "error"); return; }
+  try {
+    const r = await fetch("/auth/login", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({username: u, password: p})
+    });
+    if (!r.ok) { alert2(err, "Invalid credentials", "error"); return; }
+    TOKEN = (await r.json()).token;
+    localStorage.setItem("rag_token", TOKEN);
+    showApp();
+  } catch(e) { alert2(err, "Connection error: " + e.message, "error"); }
+}
+
+function logout() {
+  TOKEN = ""; localStorage.removeItem("rag_token");
+  $("appShell").style.display = "none";
+  $("loginPage").style.display = "flex";
+}
+
+function showApp() {
+  $("loginPage").style.display = "none";
+  $("appShell").style.display = "flex";
+  loadStats(); loadDocs();
+}
+
+function nav(page) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+  $("page-" + page).classList.add("active");
+  document.querySelector(`[data-page="${page}"]`).classList.add("active");
+  if (page === "documents") loadDocs();
+}
+
+async function loadStats() {
+  try {
+    const r = await api("/admin/stats");
+    if (r.ok) { const d = await r.json(); $("statsChip").textContent = (d.total_chunks || 0) + " chunks"; }
+  } catch {}
+}
+
+async function ingestDrive() {
+  const fid = v("driveId"), clearFirst = $("driveClear").checked;
+  const btn = $("driveBtn"), prog = $("driveProg"), fill = $("driveFill"),
+        ptxt = $("driveProgTxt"), al = $("driveAlert");
+  if (!fid) { alert2(al, "Enter a Google Drive folder ID", "error"); return; }
+  setBtn(btn, true, "Ingesting..."); prog.classList.add("show");
+  fill.style.width = "20%"; ptxt.textContent = "Fetching from Google Drive..."; hideAlert(al);
+  try {
+    fill.style.width = "55%"; ptxt.textContent = "Processing documents...";
+    const r = await api("/admin/ingest/drive", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({folder_id: fid, clear_first: clearFirst})
+    });
+    fill.style.width = "100%";
+    if (!r.ok) { alert2(al, (await r.json()).detail || "Ingestion failed", "error"); }
+    else {
+      const d = await r.json();
+      ptxt.textContent = `Done — ${d.documents} file(s), ${d.chunks} chunks`;
+      alert2(al, `Ingested ${d.documents} document(s) — ${d.chunks} chunks added`, "success");
+      loadStats();
     }
+  } catch(e) { alert2(al, "Error: " + e.message, "error"); }
+  finally { setBtn(btn, false, "Ingest from Drive"); setTimeout(() => prog.classList.remove("show"), 4000); }
+}
 
-    ingestBtn.onclick = async () => {
-      const folderId = folderIdInput.value.trim();
-      if (!folderId) {
-        alert("Please enter a valid folder ID.");
-        return;
+function onFilePick(e) {
+  pickedFile = e.target.files[0]; if (!pickedFile) return;
+  $("fName").textContent = pickedFile.name;
+  $("fSize").textContent = "(" + (pickedFile.size / 1024).toFixed(1) + " KB)";
+  $("filePreview").style.display = "block"; $("fileBtn").disabled = false;
+}
+
+const dz = document.getElementById("dropZone");
+dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("drag-over"); });
+dz.addEventListener("dragleave", () => dz.classList.remove("drag-over"));
+dz.addEventListener("drop", e => {
+  e.preventDefault(); dz.classList.remove("drag-over");
+  const f = e.dataTransfer.files[0]; if (!f) return;
+  pickedFile = f;
+  $("fName").textContent = f.name; $("fSize").textContent = "(" + (f.size/1024).toFixed(1) + " KB)";
+  $("filePreview").style.display = "block"; $("fileBtn").disabled = false;
+});
+
+async function ingestFile() {
+  if (!pickedFile) return;
+  const btn = $("fileBtn"), al = $("fileAlert"), clearFirst = $("fileClear").checked;
+  setBtn(btn, true, "Uploading..."); hideAlert(al);
+  const fd = new FormData();
+  fd.append("file", pickedFile); fd.append("clear_first", clearFirst);
+  try {
+    const r = await api("/admin/ingest/file", {method: "POST", body: fd});
+    if (!r.ok) { alert2(al, (await r.json()).detail || "Upload failed", "error"); }
+    else { const d = await r.json(); alert2(al, `${d.filename} — ${d.chunks} chunks added`, "success"); loadStats(); }
+  } catch(e) { alert2(al, "Error: " + e.message, "error"); }
+  finally { setBtn(btn, false, "Upload & Ingest"); }
+}
+
+async function ingestUrl() {
+  const url = v("urlVal"), clearFirst = $("urlClear").checked;
+  const btn = $("urlBtn"), al = $("urlAlert");
+  if (!url) { alert2(al, "Enter a URL", "error"); return; }
+  setBtn(btn, true, "Scraping..."); hideAlert(al);
+  try {
+    const r = await api("/admin/ingest/url", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({url, clear_first: clearFirst})
+    });
+    if (!r.ok) { alert2(al, (await r.json()).detail || "Failed", "error"); }
+    else { const d = await r.json(); alert2(al, `Scraped — ${d.chunks} chunks added`, "success"); loadStats(); }
+  } catch(e) { alert2(al, "Error: " + e.message, "error"); }
+  finally { setBtn(btn, false, "Scrape & Ingest"); }
+}
+
+async function ingestText() {
+  const title = v("txtTitle") || "Manual Entry", text = v("txtBody"), clearFirst = $("txtClear").checked;
+  const btn = $("txtBtn"), al = $("txtAlert");
+  if (!text) { alert2(al, "Content cannot be empty", "error"); return; }
+  setBtn(btn, true, "Processing..."); hideAlert(al);
+  try {
+    const r = await api("/admin/ingest/text", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({text, title, clear_first: clearFirst})
+    });
+    if (!r.ok) { alert2(al, (await r.json()).detail || "Failed", "error"); }
+    else { const d = await r.json(); alert2(al, `"${d.title}" — ${d.chunks} chunks added`, "success"); $("txtBody").value = ""; loadStats(); }
+  } catch(e) { alert2(al, "Error: " + e.message, "error"); }
+  finally { setBtn(btn, false, "Add to Knowledge Base"); }
+}
+
+async function loadDocs() {
+  const body = $("docsBody");
+  try {
+    const r = await api("/admin/documents");
+    if (!r.ok) { body.innerHTML = emptyRow("Failed to load documents"); return; }
+    const docs = await r.json();
+    if (!docs.length) { body.innerHTML = emptyRow("No documents ingested yet."); return; }
+    body.innerHTML = docs.map(d => `
+      <tr>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(d.filename)}">${esc(d.filename)}</td>
+        <td><span class="badge badge-${esc(d.source_type)}">${esc(d.source_type)}</span></td>
+        <td>${d.chunks}</td>
+        <td>${d.ingested_at ? new Date(d.ingested_at).toLocaleDateString() : "—"}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="delDoc('${esc(d.doc_id)}',this)">Delete</button></td>
+      </tr>`).join("");
+  } catch(e) { body.innerHTML = emptyRow("Error: " + e.message); }
+}
+
+async function delDoc(id, btn) {
+  if (!confirm("Remove this document from the knowledge base?")) return;
+  btn.disabled = true; btn.textContent = "...";
+  try { await api(`/admin/documents/${id}`, {method: "DELETE"}); loadDocs(); loadStats(); }
+  catch { btn.disabled = false; btn.textContent = "Delete"; }
+}
+
+async function clearAll() {
+  if (!confirm("Clear the entire knowledge base? This cannot be undone.")) return;
+  await api("/admin/collection", {method: "DELETE"});
+  loadDocs(); loadStats();
+}
+
+async function sendChat() {
+  const inp = $("chatIn"), q = inp.value.trim(); if (!q) return;
+  inp.value = ""; addMsg(q, "user");
+  const btn = $("chatBtn"); btn.disabled = true;
+  const thinking = appendMsg("Thinking...", "bot");
+  try {
+    const r = await api("/ask", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({question: q})
+    });
+    thinking.remove();
+    if (!r.ok) { addMsg("Error: " + ((await r.json()).detail || "Request failed"), "bot"); }
+    else {
+      const d = await r.json();
+      const el = appendMsg(d.answer, "bot");
+      if (d.context) {
+        const src = document.createElement("div");
+        src.className = "src";
+        src.textContent = "Based on: " + d.context.slice(0, 140) + (d.context.length > 140 ? "..." : "");
+        el.appendChild(src);
       }
+    }
+  } catch(e) { thinking.remove(); addMsg("Connection error: " + e.message, "bot"); }
+  finally { btn.disabled = false; }
+}
 
-      ingestBtn.disabled = true;
-      askBtn.disabled = true;
-      questionInput.disabled = true;
+function addMsg(text, role) { appendMsg(text, role); }
+function appendMsg(text, role) {
+  const box = $("chatBox"), div = document.createElement("div");
+  div.className = "msg " + role; div.textContent = text;
+  box.appendChild(div); box.scrollTop = box.scrollHeight; return div;
+}
 
-      progressLabel.textContent = "Clearing old chunks...";
-      loadingBar.style.width = "30%";
+function api(path, opts = {}) {
+  const headers = {"Authorization": "Bearer " + TOKEN, ...(opts.headers || {})};
+  if (opts.body instanceof FormData) delete headers["Content-Type"];
+  return fetch(API + path, {...opts, headers}).then(r => {
+    if (r.status === 401 && path !== "/auth/login") logout();
+    return r;
+  });
+}
+function $(id) { return document.getElementById(id); }
+function v(id) { return $(id).value.trim(); }
+function alert2(el, msg, type) { el.textContent = msg; el.className = `alert alert-${type} show`; }
+function hideAlert(el) { el.className = "alert"; }
+function setBtn(btn, dis, txt) { btn.disabled = dis; btn.innerHTML = dis ? `<span class="spin"></span> ${txt}` : txt; }
+function emptyRow(msg) { return `<tr><td colspan="5"><div class="empty"><span class="ei">📭</span>${esc(msg)}</div></td></tr>`; }
+function esc(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
-      try {
-        const clearRes = await fetch(`${BASE_URL}/clear`, { method: "POST" });
-        const clearData = await clearRes.json();
-
-        if (!clearRes.ok || clearData.success === false) {
-          throw new Error("Failed to clear existing data.");
-        }
-
-        progressLabel.textContent = "Loading data from Google Drive...";
-        loadingBar.style.width = "60%";
-
-        await new Promise(res => setTimeout(res, 3000)); // simulate drive latency
-
-        progressLabel.textContent = "Updating vector database...";
-        loadingBar.style.width = "90%";
-
-        const ingestRes = await fetch(`${BASE_URL}/ingest`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ folderId }),
-        });
-
-        const ingestData = await ingestRes.json();
-
-        if (!ingestRes.ok) {
-          throw new Error(ingestData.error || "Ingest failed");
-        }
-
-        progressLabel.textContent = "System ready. Ask your question.";
-        loadingBar.style.width = "100%";
-        askBtn.disabled = false;
-        questionInput.disabled = false;
-      } catch (err) {
-        console.error("❌ Ingest Error:", err);
-        progressLabel.textContent = "Ingest failed: " + err.message;
-        loadingBar.style.width = "0%";
-      } finally {
-        ingestBtn.disabled = false;
-      }
-    };
-
-    askBtn.onclick = async () => {
-      const question = questionInput.value.trim();
-      if (!question) return;
-
-      addMessage(question, "user");
-      questionInput.value = "";
-      addMessage("Thinking...", "assistant");
-
-      try {
-        const res = await fetch(`${BASE_URL}/ask`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question }),
-        });
-
-        const data = await res.json();
-        chatBox.lastChild.textContent = data.answer || "No answer received.";
-      } catch (err) {
-        console.error("❌ Ask Error:", err);
-        chatBox.lastChild.textContent = "Error: Could not get answer.";
-      }
-    };
-  </script>
+init();
+</script>
 </body>
 </html>
