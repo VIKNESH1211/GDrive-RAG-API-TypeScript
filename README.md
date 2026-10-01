@@ -1,7 +1,7 @@
 
 # 🚀 GDrive RAG API
 
-This is an **end-to-end Retrieval-Augmented Generation (RAG)** pipeline that ingests PDF Google Drive documents, chunks them smartly, generates embeddings with **Cohere**, stores them in **Qdrant**, and answers queries using **Groq’s LLaMA 3.1-8b-instant**.
+This is an **end-to-end Retrieval-Augmented Generation (RAG)** pipeline that ingests PDF Google Drive documents, chunks them smartly, generates embeddings with **OpenAI text-embedding-3-small**, stores them in **Qdrant**, and answers queries using **OpenAI’s GPT-4o-mini**.
 
 This version is built in **TypeScript**, fully **Dockerized**, and ready to **scale**.
 
@@ -25,9 +25,9 @@ Backend : Railway
 | Layer         | Tech                          |
 |---------------|-------------------------------|
 | Language      | TypeScript                    |
-| Embeddings    | Cohere Embed API              |
+| Embeddings    | OpenAI text-embedding-3-small |
 | Vector Store  | Qdrant                        |
-| LLM           | Groq API (LLaMA 3.1 8B)       |
+| LLM           | OpenAI API (GPT-4o-mini)       |
 | File Source   | Google Drive API              |
 | Runtime       | Node.js, Express              |
 | Deployment    | Docker (Node base)            |
@@ -85,8 +85,7 @@ QDRANT_KEY=your-qdrant-api-key
 QDRANT_URL=https://your-qdrant-endpoint
 QDRANT_COLLECTION=gdrive-rag-data
 
-COHERE_API_KEY=your-cohere-api-key
-GROQ_API_KEY=your-groq-api-key
+OPENAI_API_KEY=your-openai-api-key
 ```
 
 > The service account JSON file must be mounted when running locally or in Docker.
@@ -109,8 +108,7 @@ QDRANT_KEY=your-qdrant-key
 QDRANT_URL=https://your-qdrant-instance
 QDRANT_COLLECTION=gdrive-rag-data
 
-COHERE_API_KEY=your-cohere-key
-GROQ_API_KEY=your-groq-key
+OPENAI_API_KEY=your-openai-key
 ```
 
 ### 🚀 Step 4: Run the Container
@@ -164,12 +162,12 @@ docker run -d \
 graph LR
   A[Google Drive Folder] --> B[Extract Text via Google API]
   B --> C[Chunk Text 250, 50 overlap]
-  C --> D[Generate Embeddings COHERE]
+  C --> D[Generate Embeddings OpenAI]
   D --> E[Store in Qdrant Vector DB]
 
   F[User Query] --> G[Embedding + Similarity Search]
   G --> H[Top-K Contexts + User Query]
-  H --> I[Groq LLaMA 3.1-8B Instant → Final Answer]
+  H --> I[OpenAI GPT-4o-mini → Final Answer]
 
 ```
 ---
@@ -197,7 +195,7 @@ fetch("http://localhost:3000/ingest", {
 | `403 Google`           | Check GDrive file access and service account permissions. |
 | `Qdrant Error`         | Validate API key, URL, and collection name.               |
 | `Docker ENV Not Found` | Check `.env` file location and format.                    |
-| `Groq Timeout`         | Use shorter prompts or retry on failure.                  |
+| `OpenAI Timeout`         | Use shorter prompts or retry on failure.                  |
 
 ---
 
