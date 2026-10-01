@@ -1,7 +1,7 @@
 import re
 
 
-def chunk_text(text: str, max_chars: int = 1500, overlap: int = 200) -> list[str]:
+def chunk_text(text: str, max_chars: int = 800, overlap: int = 150) -> list[str]:
     # Normalize whitespace
     text = re.sub(r"\n{3,}", "\n\n", text.strip())
 

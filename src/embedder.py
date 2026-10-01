@@ -1,25 +1,29 @@
 import os
-import cohere
+import requests
 
 VECTOR_DIM = 1536
-MODEL = "embed-v4.0"
+MODEL = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
+_URL = "https://api.openai.com/v1/embeddings"
 
-_co = cohere.Client(os.getenv("COHERE_API_KEY"))
 
-
-def _extract_vectors(response) -> list[list[float]]:
-    emb = response.embeddings
-    # cohere v5 with embedding_types returns EmbeddingsByType
-    if isinstance(emb, list):
-        return emb
-    return emb.float_
+def _embed(texts: list[str]) -> list[list[float]]:
+    resp = requests.post(
+        _URL,
+        json={"model": MODEL, "input": texts, "dimensions": VECTOR_DIM},
+        headers={
+            "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
+            "Content-Type": "application/json",
+        },
+        timeout=60,
+    )
+    resp.raise_for_status()
+    data = sorted(resp.json()["data"], key=lambda d: d["index"])
+    return [d["embedding"] for d in data]
 
 
 def embed_documents(texts: list[str]) -> list[list[float]]:
-    response = _co.embed(texts=texts, model=MODEL, input_type="search_document")
-    return _extract_vectors(response)
+    return _embed(texts)
 
 
 def embed_query(text: str) -> list[float]:
-    response = _co.embed(texts=[text], model=MODEL, input_type="search_query")
-    return _extract_vectors(response)[0]
+    return _embed([text])[0]

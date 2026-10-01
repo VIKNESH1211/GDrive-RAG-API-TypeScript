@@ -25,6 +25,7 @@ from src.auth import create_token, verify_admin, ADMIN_USERNAME, ADMIN_PASSWORD
 from src.vector_store import VectorStore
 from src.ingestion import ingest_from_drive, ingest_pdf_bytes, ingest_docx_bytes, ingest_url
 from src.llm import generate_answer
+from src.guardrails import check_question, is_greeting, NO_INFO, GREETING
 
 logger = logging.getLogger(__name__)
 
@@ -187,13 +188,15 @@ def ask(request: Request, body: ChatRequest):
     q = body.question.strip()
     if not q:
         raise HTTPException(400, "Question cannot be empty")
+    blocked = check_question(q)
+    if blocked:
+        logger.warning("Blocked question: %r", q[:200])
+        return {"question": q, "answer": blocked, "context": ""}
+    if is_greeting(q):
+        return {"question": q, "answer": GREETING, "context": ""}
     context = vs.search(q)
     if not context:
-        return {
-            "question": q,
-            "answer": "I don't have information about that in the knowledge base.",
-            "context": "",
-        }
+        return {"question": q, "answer": NO_INFO, "context": ""}
     answer = generate_answer(q, context)
     return {"question": q, "answer": answer, "context": context}
 

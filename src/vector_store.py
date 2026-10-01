@@ -73,7 +73,7 @@ class VectorStore:
         logger.info("Stored %d chunks for '%s'", len(points), filename)
         return len(points)
 
-    def search(self, question: str, limit: int = 5) -> str:
+    def search(self, question: str, limit: int = 7) -> str:
         vector = embed_query(question)
         results = self.client.query_points(
             collection_name=COLLECTION,
