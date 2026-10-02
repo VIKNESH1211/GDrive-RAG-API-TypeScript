@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   qdrant:
     image: qdrant/qdrant:v1.11.0
@@ -10,10 +8,27 @@ services:
     volumes:
       - qdrant_storage:/qdrant/storage
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/6333 && printf 'GET /readyz HTTP/1.0\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q 200"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     networks:
       - rag-network
 
   backend:
+    # Set BACKEND_IMAGE to pull a prebuilt image (e.g. user/wabag-bot:1.0); otherwise it builds locally
+    image: ${BACKEND_IMAGE:-wabag-backend:local}
     build:
       context: .
       dockerfile: Dockerfile
@@ -24,9 +39,18 @@ services:
     environment:
       - QDRANT_URL=http://qdrant:6333
       - QDRANT_KEY=
+      - LOG_FORMAT=json
+      - WEB_CONCURRENCY=2
+      - FORWARDED_ALLOW_IPS=*
     depends_on:
-      - qdrant
+      qdrant:
+        condition: service_healthy
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    logging: *logging
     networks:
       - rag-network
 

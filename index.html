@@ -57,6 +57,10 @@ textarea{resize:vertical;min-height:90px}
 .ck-label{display:flex;align-items:center;gap:.4rem;cursor:pointer;color:var(--muted);font-size:.8125rem;margin-top:.5rem}
 .ck-label input{width:auto}
 
+.card.locked{position:relative;background:#f8fafc}
+.card.locked > *:not(.lock-badge){opacity:.45;pointer-events:none;user-select:none}
+.lock-badge{position:absolute;top:.875rem;right:1rem;display:inline-flex;align-items:center;gap:.3rem;background:#e2e8f0;color:#475569;font-size:.7rem;font-weight:600;padding:.2rem .6rem;border-radius:999px}
+
 .btn{padding:.5rem 1rem;border-radius:.5rem;border:none;font-size:.8125rem;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem;transition:.15s}
 .btn-primary{background:var(--primary);color:#fff}
 .btn-primary:hover:not(:disabled){background:var(--primary-dark)}
@@ -191,32 +195,34 @@ tr:hover td{background:#fafbfc}
         <div id="fileAlert" class="alert"></div>
       </div>
 
-      <div class="card">
+      <div class="card locked" title="This feature is locked">
+        <span class="lock-badge">🔒 Locked</span>
         <h3>🌐 Web Page URL</h3>
         <div class="fg">
           <label>URL</label>
-          <input id="urlVal" type="url" placeholder="https://example.com/page">
+          <input id="urlVal" disabled type="url" placeholder="https://example.com/page">
         </div>
-        <label class="ck-label"><input type="checkbox" id="urlClear"> Clear knowledge base first</label>
+        <label class="ck-label"><input type="checkbox" id="urlClear" disabled> Clear knowledge base first</label>
         <div style="margin-top:.875rem">
-          <button class="btn btn-primary" id="urlBtn" onclick="ingestUrl()">Scrape &amp; Ingest</button>
+          <button class="btn btn-primary" id="urlBtn" disabled onclick="ingestUrl()">Scrape &amp; Ingest</button>
         </div>
         <div id="urlAlert" class="alert"></div>
       </div>
 
-      <div class="card">
+      <div class="card locked" title="This feature is locked">
+        <span class="lock-badge">🔒 Locked</span>
         <h3>✏️ Plain Text</h3>
         <div class="fg">
           <label>Title</label>
-          <input id="txtTitle" type="text" placeholder="e.g. Product FAQ">
+          <input id="txtTitle" disabled type="text" placeholder="e.g. Product FAQ">
         </div>
         <div class="fg">
           <label>Content</label>
-          <textarea id="txtBody" placeholder="Paste text content here..."></textarea>
+          <textarea id="txtBody" disabled placeholder="Paste text content here..."></textarea>
         </div>
-        <label class="ck-label"><input type="checkbox" id="txtClear"> Clear knowledge base first</label>
+        <label class="ck-label"><input type="checkbox" id="txtClear" disabled> Clear knowledge base first</label>
         <div style="margin-top:.875rem">
-          <button class="btn btn-primary" id="txtBtn" onclick="ingestText()">Add to Knowledge Base</button>
+          <button class="btn btn-primary" id="txtBtn" disabled onclick="ingestText()">Add to Knowledge Base</button>
         </div>
         <div id="txtAlert" class="alert"></div>
       </div>
@@ -378,6 +384,7 @@ async function ingestFile() {
 }
 
 async function ingestUrl() {
+  return; // locked
   const url = v("urlVal"), clearFirst = $("urlClear").checked;
   const btn = $("urlBtn"), al = $("urlAlert");
   if (!url) { alert2(al, "Enter a URL", "error"); return; }
@@ -394,6 +401,7 @@ async function ingestUrl() {
 }
 
 async function ingestText() {
+  return; // locked
   const title = v("txtTitle") || "Manual Entry", text = v("txtBody"), clearFirst = $("txtClear").checked;
   const btn = $("txtBtn"), al = $("txtAlert");
   if (!text) { alert2(al, "Content cannot be empty", "error"); return; }

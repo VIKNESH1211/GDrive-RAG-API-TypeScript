@@ -17,5 +17,8 @@ RUN chmod +x /app/wait-for-qdrant.sh
 
 EXPOSE 3000
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:3000/health', timeout=4).status==200 else 1)"
+
 ENTRYPOINT ["/app/wait-for-qdrant.sh", "qdrant", "6333"]
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "3000"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "3000", "--no-access-log", "--proxy-headers"]
