@@ -34,11 +34,16 @@ class VectorStore:
     def init(self):
         existing = {c.name for c in self.client.get_collections().collections}
         if COLLECTION not in existing:
-            self.client.create_collection(
-                collection_name=COLLECTION,
-                vectors_config=VectorParams(size=VECTOR_DIM, distance=Distance.COSINE),
-            )
-            logger.info("Created Qdrant collection: %s", COLLECTION)
+            try:
+                self.client.create_collection(
+                    collection_name=COLLECTION,
+                    vectors_config=VectorParams(size=VECTOR_DIM, distance=Distance.COSINE),
+                )
+                logger.info("Created Qdrant collection: %s", COLLECTION)
+            except Exception:
+                # Another worker may have created it at the same moment
+                if COLLECTION not in {c.name for c in self.client.get_collections().collections}:
+                    raise
 
     def add_document(self, text: str, source_type: str, filename: str, doc_id: str) -> int:
         chunks = chunk_text(text)

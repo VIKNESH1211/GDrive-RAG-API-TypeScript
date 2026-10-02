@@ -1,21 +1,21 @@
 import os
+import time
 import uuid
 import logging
 from contextlib import asynccontextmanager
 from typing import Optional
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s — %(message)s",
-)
-
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
+from src.logging_config import setup_logging, request_id_var
+
+setup_logging()
+
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -25,6 +25,7 @@ from src.auth import create_token, verify_admin, ADMIN_USERNAME, ADMIN_PASSWORD
 from src.vector_store import VectorStore
 from src.ingestion import ingest_from_drive, ingest_pdf_bytes, ingest_docx_bytes, ingest_url
 from src.llm import generate_answer
+from src.openai_client import UpstreamError
 from src.guardrails import check_question, is_greeting, NO_INFO, GREETING
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,8 @@ limiter = Limiter(key_func=get_remote_address)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if not os.getenv("OPENAI_API_KEY"):
+        raise RuntimeError("OPENAI_API_KEY is not set")
     vs.init()
     logger.info("RAG API v2 ready")
     yield
@@ -49,6 +52,39 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def request_context(request: Request, call_next):
+    rid = request.headers.get("x-request-id") or uuid.uuid4().hex[:12]
+    token = request_id_var.set(rid)
+    start = time.perf_counter()
+    status = 500
+    try:
+        response = await call_next(request)
+        status = response.status_code
+        response.headers["X-Request-ID"] = rid
+        return response
+    finally:
+        ms = (time.perf_counter() - start) * 1000
+        level = logging.DEBUG if request.url.path == "/health" else logging.INFO
+        logger.log(level, "%s %s -> %s (%.0f ms)", request.method, request.url.path, status, ms)
+        request_id_var.reset(token)
+
+
+@app.exception_handler(UpstreamError)
+async def upstream_error_handler(request: Request, exc: UpstreamError):
+    logger.error("Upstream failure: %s", exc)
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "The assistant is temporarily unavailable. Please try again shortly."},
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_error_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -75,11 +111,11 @@ class DriveIngestRequest(BaseModel):
 @app.post("/admin/ingest/drive")
 @limiter.limit("5/minute")
 def ingest_drive(request: Request, body: DriveIngestRequest, admin=Depends(verify_admin)):
-    if body.clear_first:
-        vs.clear()
     docs = ingest_from_drive(body.folder_id)
     if not docs:
         return {"documents": 0, "chunks": 0, "message": "No supported files found in folder"}
+    if body.clear_first:
+        vs.clear()
     total = sum(vs.add_document(d["text"], "drive", d["name"], d["id"]) for d in docs)
     return {"documents": len(docs), "chunks": total}
 
@@ -205,6 +241,11 @@ def ask(request: Request, body: ChatRequest):
 
 @app.get("/health")
 def health():
+    try:
+        vs.client.get_collections()
+    except Exception:
+        logger.exception("Health check: vector store unreachable")
+        raise HTTPException(503, "Vector store unavailable")
     stats = vs.get_stats()
     return {"status": "ok", "version": "2.0.0", "chunks": stats.get("total_chunks", 0)}
 
